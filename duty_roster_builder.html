@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Duty Roster Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f4;--surface:#fff;--border:#e2e0db;--border2:#c8c6c0;
+  --text:#1a1a18;--muted:#6b6966;--hint:#9c9a96;
+  --accent:#1d5fa8;--accent-bg:#e6f1fb;
+  --warn:#854f0b;--warn-bg:#faeeda;--warn-bd:#f0c070;
+  --danger:#a32d2d;--radius:8px;--radius-lg:12px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1rem}
+.page{max-width:700px;margin:0 auto}
+h1{font-size:20px;font-weight:500;margin-bottom:4px}
+.subtitle{font-size:13px;color:var(--muted);margin-bottom:1.5rem}
+.card{background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1rem}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.07em;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+.slider-row{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;-webkit-appearance:none;height:4px;background:var(--border2);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:none;cursor:pointer}
+.ndis{font-size:24px;font-weight:500;min-width:36px;text-align:right}
+input[type=text]{font-family:inherit;font-size:13px;padding:6px 10px;border:.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);outline:none;transition:border-color .15s}
+input[type=text]:focus{border-color:var(--accent)}
+input[type=text]::placeholder{color:var(--hint)}
+button{font-family:inherit;font-size:13px;padding:6px 14px;border:.5px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);cursor:pointer;transition:background .12s}
+button:hover{background:var(--bg)}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-p{background:var(--accent);color:#fff;border-color:var(--accent);font-size:14px;padding:9px 22px}
+.btn-p:hover{background:#1a5494;border-color:#1a5494}
+.btn-p:disabled{background:var(--accent);border-color:var(--accent)}
+.trow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.trow input[type=text]{flex:1}
+.step{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.step button{width:28px;height:28px;padding:0;font-size:16px;display:flex;align-items:center;justify-content:center}
+.stepval{min-width:22px;text-align:center;font-size:13px;font-weight:500}
+.rmbtn{width:28px;height:28px;padding:0;font-size:18px;color:var(--danger);border-color:transparent;background:transparent;flex-shrink:0}
+.rmbtn:hover{background:#fcebeb;border-color:transparent}
+.badge{font-size:11px;padding:2px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:var(--accent-bg);color:var(--accent);font-weight:500}
+.hint{font-size:12px;color:var(--hint);margin-top:6px}
+.tfooter{display:flex;align-items:center;gap:12px;margin-top:8px}
+.warnbox{background:var(--warn-bg);border:.5px solid var(--warn-bd);border-radius:var(--radius);padding:10px 14px;margin-bottom:1rem;font-size:13px;color:var(--warn);display:none}
+.pcard{background:var(--surface);border:.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:1rem;display:none}
+.pscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+thead th{padding:8px 10px;font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:.5px solid var(--border);text-align:center;letter-spacing:.03em}
+thead th.dc{text-align:left;width:170px}
+td{padding:8px 10px;font-size:12px;color:var(--muted);border-bottom:.5px solid var(--border);text-align:center}
+td.dc{text-align:left;font-size:13px;color:var(--text)}
+tr:last-child td{border-bottom:none}
+.dsub{font-size:10px;font-weight:400;color:var(--hint);display:block;margin-top:1px}
+.dlrow{display:flex;align-items:center;gap:12px}
+.dlhint{font-size:12px;color:var(--hint)}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Class duty roster builder</h1>
+  <p class="subtitle">Configure your class size and tasks, then download a ready-to-fill Excel file.</p>
+
+  <div class="card">
+    <p class="lbl">Number of students</p>
+    <div class="slider-row">
+      <input type="range" id="ns" min="30" max="45" step="1" value="38">
+      <span class="ndis" id="nd">38</span>
+    </div>
+    <p class="hint" id="nh"></p>
+  </div>
+
+  <div class="card">
+    <p class="lbl">Tasks</p>
+    <div id="tl"></div>
+    <div class="tfooter">
+      <button id="addbtn">+ Add task</button>
+      <span class="hint" id="th"></span>
+    </div>
+  </div>
+
+  <div class="warnbox" id="wb"></div>
+
+  <div class="pcard" id="pc">
+    <div class="pscroll"><table id="pt"></table></div>
+  </div>
+
+  <div class="dlrow">
+    <button class="btn-p" id="dlb" disabled>&#8595; Download Excel</button>
+    <span class="dlhint" id="dlh"></span>
+  </div>
+</div>
+
+<script>
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+let n = 38, nid = 6;
+let tasks = [
+  {id:1, name:"Board cleaning",              s:1},
+  {id:2, name:"Waste disposal",              s:1},
+  {id:3, name:"Sink (dry and clean)",        s:1},
+  {id:4, name:"Sweeping floor",              s:2},
+  {id:5, name:"Arranging tables and chairs", s:2}
+];
+
+const ns=document.getElementById("ns"), nd=document.getElementById("nd"),
+      nh=document.getElementById("nh"), tl=document.getElementById("tl"),
+      th=document.getElementById("th"), wb=document.getElementById("wb"),
+      pc=document.getElementById("pc"), pt=document.getElementById("pt"),
+      dlb=document.getElementById("dlb"), dlh=document.getElementById("dlh");
+
+ns.addEventListener("input", e => { n = +e.target.value; render(); });
+document.getElementById("addbtn").addEventListener("click", () => {
+  tasks.push({id:nid++, name:"", s:1}); render();
+});
+
+function calc() {
+  if (!tasks.length) return null;
+  const base = tasks.reduce((a,t) => a+t.s, 0), extra = n - 5*base;
+  if (extra < 0 || extra > 4) return null;
+  const mx = Math.max(...tasks.map(t=>t.s)), hi = tasks.findIndex(t=>t.s===mx);
+  const res=[]; let c=1;
+  for (let d=0; d<5; d++) {
+    res.push(tasks.map((t,i) => {
+      const cnt = t.s + (i===hi && d<extra ? 1 : 0), a=[];
+      for (let j=0; j<cnt; j++) a.push(c++);
+      return a;
+    }));
+  }
+  return {a:res, extra, hi, base};
+}
+
+function render() {
+  nd.textContent = n;
+  const base = tasks.reduce((a,t) => a+t.s, 0), extra = n - 5*base;
+  const mx = tasks.length ? Math.max(...tasks.map(t=>t.s)) : 0;
+  const hi = tasks.findIndex(t => t.s===mx);
+  const mok = tasks.length>0 && extra>=0 && extra<=4;
+
+  nh.textContent = "5 duty groups (Mon-Fri), base " + Math.floor(n/5) + " students per day" +
+    (n%5>0 ? ", " + (n%5) + " day" + (n%5>1?"s":"") + " with " + (Math.floor(n/5)+1) : ", evenly distributed");
+
+  tl.innerHTML = "";
+  tasks.forEach((t, ti) => {
+    const row = document.createElement("div"); row.className = "trow";
+    const inp = document.createElement("input"); inp.type="text";
+    inp.placeholder = "Task name"; inp.value = t.name;
+    inp.addEventListener("input", e => {
+      tasks = tasks.map(x => x.id===t.id ? {...x, name:e.target.value} : x); upd();
+    });
+    const st = document.createElement("div"); st.className = "step";
+    const dm = document.createElement("button"); dm.textContent = "-";
+    dm.addEventListener("click", () => { tasks=tasks.map(x=>x.id===t.id?{...x,s:Math.max(1,x.s-1)}:x); render(); });
+    const sv = document.createElement("span"); sv.className="stepval"; sv.textContent = t.s;
+    const ip = document.createElement("button"); ip.textContent = "+";
+    ip.addEventListener("click", () => { tasks=tasks.map(x=>x.id===t.id?{...x,s:x.s+1}:x); render(); });
+    st.append(dm, sv, ip);
+    const rb = document.createElement("button"); rb.className="rmbtn"; rb.textContent="x";
+    rb.addEventListener("click", () => { tasks=tasks.filter(x=>x.id!==t.id); render(); });
+    row.append(inp, st);
+    if (ti===hi && extra>0 && mok) {
+      const b = document.createElement("span"); b.className="badge";
+      b.textContent = "+1 on " + extra + " day" + (extra>1?"s":""); row.append(b);
+    }
+    row.append(rb); tl.appendChild(row);
+  });
+
+  const b2 = tasks.reduce((a,t)=>a+t.s, 0);
+  th.textContent = tasks.length>0
+    ? b2+" student"+(b2!==1?"s":"")+"/day base, needs "+(5*b2)+"-"+(5*b2+4)+" students total" : "";
+
+  let w="";
+  if (tasks.length>0) {
+    if (extra<0) w="Tasks need "+(5*base)+" student-slots across 5 days but you only have "+n+". Reduce task counts or increase total.";
+    else if (extra>4) w=extra+" students unassigned. Increase task student counts or reduce total.";
+  }
+  wb.style.display=w?"block":"none"; wb.textContent=w;
+  upd();
+}
+
+function upd() {
+  const r=calc(), an=tasks.length>0&&tasks.every(t=>t.name.trim()), ok=!!r&&an;
+  if (r) {
+    const dr=DAYS.map((_,d)=>({
+      s:r.a[d][0][0], e:r.a[d][tasks.length-1].slice(-1)[0],
+      tot:r.a[d].reduce((x,y)=>x+y.length,0)
+    }));
+    let h="<thead><tr><th class='dc'>Task</th>";
+    DAYS.forEach((day,d)=>{ h+="<th>"+day.slice(0,3)+"<span class='dsub'>S"+dr[d].s+"-S"+dr[d].e+" ("+dr[d].tot+")</span></th>"; });
+    h+="</tr></thead><tbody>";
+    tasks.forEach((t,ti)=>{
+      h+="<tr><td class='dc'>"+(t.name||"<em style='color:var(--hint)'>unnamed</em>")+"</td>";
+      DAYS.forEach((_,d)=>{ h+="<td style='font-size:11px'>"+r.a[d][ti].join(", ")+"</td>"; });
+      h+="</tr>";
+    });
+    pt.innerHTML=h+"</tbody>"; pc.style.display="block";
+  } else { pc.style.display="none"; }
+
+  dlb.disabled=!ok;
+  dlh.textContent=(r&&!an)?"Name all tasks to enable download.":"";
+  dlb.onclick=ok?()=>gen(r):null;
+}
+
+function gen(r) {
+  const wb2=XLSX.utils.book_new();
+  const sr=[["Register No.","Student Name"]];
+  for (let i=1;i<=n;i++) sr.push([i,""]);
+  const ws1=XLSX.utils.aoa_to_sheet(sr);
+  ws1["!cols"]=[{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb2,ws1,"Student List");
+
+  const ws2={}, ec=XLSX.utils.encode_cell;
+  const dr=DAYS.map((_,d)=>({s:r.a[d][0][0], e:r.a[d][tasks.length-1].slice(-1)[0]}));
+
+  ws2[ec({r:0,c:0})]={v:"Class Duty Roster - Weekly Rotation",t:"s"};
+  ws2[ec({r:1,c:0})]={v:"Fill in student names in the Student List sheet. Names auto-populate here.",t:"s"};
+  ws2[ec({r:2,c:0})]={v:"Duty",t:"s"};
+  DAYS.forEach((day,d)=>{ ws2[ec({r:2,c:d+1})]={v:day+" (S"+dr[d].s+"-S"+dr[d].e+")",t:"s"}; });
+
+  tasks.forEach((t,ti)=>{
+    const row=ti+3; ws2[ec({r:row,c:0})]={v:t.name,t:"s"};
+    DAYS.forEach((_,d)=>{
+      const nums=r.a[d][ti];
+      const parts=nums.map(sn=>"IFERROR(VLOOKUP("+sn+",'Student List'!$A:$B,2,0),\"Student "+sn+"\")");
+      ws2[ec({r:row,c:d+1})]={f:parts.length===1?parts[0]:parts.join("&CHAR(10)&"),t:"s"};
+    });
+  });
+
+  ws2["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:tasks.length+2,c:5}});
+  ws2["!merges"]=[{s:{r:0,c:0},e:{r:0,c:5}},{s:{r:1,c:0},e:{r:1,c:5}}];
+  ws2["!cols"]=[{wch:26},{wch:22},{wch:22},{wch:22},{wch:22},{wch:22}];
+  XLSX.utils.book_append_sheet(wb2,ws2,"Duty Roster");
+  XLSX.writeFile(wb2,"duty_roster.xlsx");
+}
+
+render();
+</script>
+</body>
+</html>
